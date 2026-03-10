@@ -12,9 +12,9 @@ DOCS_DIR = ROOT / "docs"
 DATA_DIR = DOCS_DIR / "data"
 
 MODELS_INFO_DIR = ROOT / "posterior_database" / "models" / "info"
-POSTERIORS_INFO_DIR = ROOT / "posterior_database" / "posteriors" / "info"
+POSTERIORS_DIR = ROOT / "posterior_database" / "posteriors"
 DATA_INFO_DIR = ROOT / "posterior_database" / "data" / "info"
-REFERENCE_POSTERIORS_INFO_DIR = ROOT / "posterior_database" / "reference_posteriors" / "info"
+REFERENCE_DRAWS_INFO_DIR = ROOT / "posterior_database" / "reference_posteriors" / "draws" / "info"
 REFERENCES_BIB = ROOT / "posterior_database" / "references" / "references.bib"
 
 RAW_BASE = "https://raw.githubusercontent.com/stan-dev/posteriordb/master"
@@ -26,19 +26,13 @@ MAX_CODE_PREVIEW_CHARS = 5000
 def reset_output_dir() -> None:
     if DATA_DIR.exists():
         shutil.rmtree(DATA_DIR)
-    (DATA_DIR / "models").mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / "posteriors").mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / "data").mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / "reference_draws").mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / "references").mkdir(parents=True, exist_ok=True)
+    for subdir in ["models", "posteriors", "data", "reference_draws", "references"]:
+        (DATA_DIR / subdir).mkdir(parents=True, exist_ok=True)
 
 
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -62,15 +56,19 @@ def rel_posix(path: Path) -> str:
 
 
 def blob_url(rel_path: str | None) -> str | None:
-    if not rel_path:
-        return None
-    return f"{BLOB_BASE}/{rel_path}"
+    return f"{BLOB_BASE}/{rel_path}" if rel_path else None
 
 
 def raw_url(rel_path: str | None) -> str | None:
-    if not rel_path:
-        return None
-    return f"{RAW_BASE}/{rel_path}"
+    return f"{RAW_BASE}/{rel_path}" if rel_path else None
+
+
+def normalize_keywords(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(x) for x in value if x is not None]
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    return []
 
 
 def prefer_implementation_names() -> list[str]:
@@ -87,12 +85,22 @@ def pick_preferred_impl_name(implementations: dict[str, Any]) -> str | None:
     return None
 
 
-def normalize_keywords(value: Any) -> list[str]:
-    if isinstance(value, list):
-        return [str(x) for x in value if x is not None]
-    if isinstance(value, str) and value.strip():
-        return [value.strip()]
-    return []
+def ensure_rel_path_under_posterior_database(value: str | None) -> str | None:
+    if not value:
+        return None
+    value = value.strip().lstrip("/")
+    if value.startswith("posterior_database/"):
+        return value
+    return f"posterior_database/{value}"
+
+
+def ensure_zip_suffix_for_data_file(rel_path: str | None) -> str | None:
+    if not rel_path:
+        return None
+    # data/data files are stored as .json.zip in posteriordb
+    if rel_path.startswith("posterior_database/data/data/") and not rel_path.endswith(".zip"):
+        return f"{rel_path}.zip"
+    return rel_path
 
 
 def summarize_data_section(data_section: Any) -> dict[str, Any]:
@@ -106,11 +114,14 @@ def summarize_data_section(data_section: Any) -> dict[str, Any]:
     if isinstance(data_section, dict):
         summary["has_data"] = True
         summary["name"] = data_section.get("name")
-        summary["path"] = (
+        rel = (
             data_section.get("path")
             or data_section.get("file")
             or data_section.get("data_file")
         )
+        rel = ensure_rel_path_under_posterior_database(rel)
+        rel = ensure_zip_suffix_for_data_file(rel)
+        summary["path"] = rel
 
         for key in ("description", "source", "url", "urls", "license", "licence"):
             value = data_section.get(key)
@@ -129,7 +140,10 @@ def build_model_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]
 
     implementations = info.get("model_implementations")
     if not isinstance(implementations, dict):
-        implementations = {}
+        # Backward-compatible fallback for docs that mention model_code
+        implementations = info.get("model_code", {})
+        if not isinstance(implementations, dict):
+            implementations = {}
 
     preferred_impl_name = pick_preferred_impl_name(implementations)
 
@@ -137,16 +151,18 @@ def build_model_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]
     code_previews: dict[str, str] = {}
 
     for impl_name, impl_payload in implementations.items():
-        if not isinstance(impl_payload, dict):
+        if isinstance(impl_payload, str):
+            model_code_rel = impl_payload
+        elif isinstance(impl_payload, dict):
+            model_code_rel = impl_payload.get("model_code")
+        else:
             continue
 
-        model_code_rel = impl_payload.get("model_code")
-        full_rel = f"posterior_database/{model_code_rel}" if model_code_rel else None
+        full_rel = ensure_rel_path_under_posterior_database(model_code_rel)
         preview_text = None
 
         if full_rel:
-            full_path = ROOT / full_rel
-            code_text = safe_read_text(full_path)
+            code_text = safe_read_text(ROOT / full_rel)
             if code_text is not None:
                 preview_text = truncate_code(code_text)
                 code_previews[impl_name] = preview_text
@@ -194,10 +210,10 @@ def build_model_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]
     return index_entry, item_payload
 
 
-def build_posterior_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
-    info = read_json(info_path)
-    posterior_id = info_path.name.replace(".info.json", "")
-    info_rel = rel_posix(info_path)
+def build_posterior_record(posterior_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    info = read_json(posterior_path)
+    posterior_id = posterior_path.name.replace(".json", "")
+    info_rel = rel_posix(posterior_path)
 
     item_payload = {
         "id": posterior_id,
@@ -213,8 +229,8 @@ def build_posterior_record(info_path: Path) -> tuple[dict[str, Any], dict[str, A
         "keywords": normalize_keywords(info.get("keywords")),
         "references": info.get("references", []),
         "links": {
-            "info_github": blob_url(info_rel),
-            "info_raw": raw_url(info_rel),
+            "posterior_github": blob_url(info_rel),
+            "posterior_raw": raw_url(info_rel),
         },
         "full_info": info,
     }
@@ -238,22 +254,23 @@ def build_data_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     data_id = info_path.name.replace(".info.json", "")
     info_rel = rel_posix(info_path)
 
-    raw_script = None
-    for key in ("raw_data_file", "raw_data_script", "raw_script"):
-        value = info.get(key)
-        if isinstance(value, str) and value.strip():
-            raw_script = value.strip()
+    raw_script_rel = None
+    raw_candidates = [
+        f"posterior_database/data/data-raw/{data_id}/{data_id}.py",
+        f"posterior_database/data/data-raw/{data_id}/{data_id}.r",
+    ]
+    for candidate in raw_candidates:
+        if (ROOT / candidate).exists():
+            raw_script_rel = candidate
             break
 
-    data_file = None
+    data_file_rel = None
     for key in ("data_file", "file", "path"):
         value = info.get(key)
         if isinstance(value, str) and value.strip():
-            data_file = value.strip()
+            data_file_rel = ensure_rel_path_under_posterior_database(value.strip())
+            data_file_rel = ensure_zip_suffix_for_data_file(data_file_rel)
             break
-
-    raw_script_rel = f"posterior_database/{raw_script}" if raw_script else None
-    data_file_rel = f"posterior_database/{data_file}" if data_file else None
 
     item_payload = {
         "id": data_id,
@@ -271,7 +288,9 @@ def build_data_record(info_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
             "info_github": blob_url(info_rel),
             "info_raw": raw_url(info_rel),
             "data_file_github": blob_url(data_file_rel),
+            "data_file_raw": raw_url(data_file_rel),
             "raw_script_github": blob_url(raw_script_rel),
+            "raw_script_raw": raw_url(raw_script_rel),
         },
         "full_info": info,
     }
@@ -292,14 +311,7 @@ def build_reference_draw_record(info_path: Path) -> tuple[dict[str, Any], dict[s
     draw_id = info_path.name.replace(".info.json", "")
     info_rel = rel_posix(info_path)
 
-    draw_file = None
-    for key in ("draws_file", "file", "path"):
-        value = info.get(key)
-        if isinstance(value, str) and value.strip():
-            draw_file = value.strip()
-            break
-
-    draw_file_rel = f"posterior_database/{draw_file}" if draw_file else None
+    draw_file_rel = f"posterior_database/reference_posteriors/draws/{draw_id}.json.zip"
 
     item_payload = {
         "id": draw_id,
@@ -318,6 +330,7 @@ def build_reference_draw_record(info_path: Path) -> tuple[dict[str, Any], dict[s
             "info_github": blob_url(info_rel),
             "info_raw": raw_url(info_rel),
             "draw_file_github": blob_url(draw_file_rel),
+            "draw_file_raw": raw_url(draw_file_rel),
         },
         "full_info": info,
     }
@@ -336,7 +349,6 @@ def build_reference_draw_record(info_path: Path) -> tuple[dict[str, Any], dict[s
 def parse_bibtex_entries(text: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
 
-    # Split on lines that start a new BibTeX entry.
     starts = list(re.finditer(r"(?m)^@", text))
     if not starts:
         return entries
@@ -358,13 +370,12 @@ def parse_bibtex_entries(text: str) -> list[dict[str, Any]]:
 
         fields: dict[str, str] = {}
         for field_match in re.finditer(
-            r"(?mi)^\s*([a-zA-Z_][a-zA-Z0-9_\-]*)\s*=\s*(.+?)\s*,?\s*$",
+            r"(?mis)^\s*([a-zA-Z_][a-zA-Z0-9_\-]*)\s*=\s*(.+?)(?=,\s*[a-zA-Z_][a-zA-Z0-9_\-]*\s*=|\s*}$)",
             chunk,
         ):
             key = field_match.group(1).strip().lower()
-            raw_value = field_match.group(2).strip()
+            value = field_match.group(2).strip().rstrip(",")
 
-            value = raw_value.strip().rstrip(",").strip()
             if value.startswith("{") and value.endswith("}"):
                 value = value[1:-1].strip()
             elif value.startswith('"') and value.endswith('"'):
@@ -434,18 +445,13 @@ def build_reference_records() -> list[tuple[dict[str, Any], dict[str, Any]]]:
     return results
 
 
-def build_section(
-    source_dir: Path,
-    out_dir: Path,
-    builder,
-) -> list[dict[str, Any]]:
+def build_section(source_dir: Path, out_dir: Path, pattern: str, builder) -> list[dict[str, Any]]:
     index_entries: list[dict[str, Any]] = []
-
     if not source_dir.exists():
         return index_entries
 
-    for info_path in sorted(source_dir.glob("*.info.json")):
-        index_entry, item_payload = builder(info_path)
+    for path in sorted(source_dir.glob(pattern)):
+        index_entry, item_payload = builder(path)
         write_json(out_dir / f"{index_entry['id']}.json", item_payload)
         index_entries.append(index_entry)
 
@@ -458,24 +464,28 @@ def main() -> None:
     model_index = build_section(
         MODELS_INFO_DIR,
         DATA_DIR / "models",
+        "*.info.json",
         build_model_record,
     )
 
     posterior_index = build_section(
-        POSTERIORS_INFO_DIR,
+        POSTERIORS_DIR,
         DATA_DIR / "posteriors",
+        "*.json",
         build_posterior_record,
     )
 
     data_index = build_section(
         DATA_INFO_DIR,
         DATA_DIR / "data",
+        "*.info.json",
         build_data_record,
     )
 
     reference_draw_index = build_section(
-        REFERENCE_POSTERIORS_INFO_DIR,
+        REFERENCE_DRAWS_INFO_DIR,
         DATA_DIR / "reference_draws",
+        "*.info.json",
         build_reference_draw_record,
     )
 
