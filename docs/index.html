@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PosteriorDB Query App</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121932;
+      --panel-2: #1a2345;
+      --text: #e8ecff;
+      --muted: #a9b3d9;
+      --accent: #86b7ff;
+      --border: #2d3a6b;
+      --success: #8fe3b0;
+      --danger: #ff9b9b;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #0b1020 0%, #0f1530 100%);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .sub {
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(18, 25, 50, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+    }
+
+    label {
+      display: block;
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input, select, button, textarea {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 12px 14px;
+      font: inherit;
+    }
+
+    input:focus, select:focus, button:focus {
+      outline: 2px solid rgba(134, 183, 255, 0.35);
+      outline-offset: 1px;
+    }
+
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, #2b4ea2 0%, #1e3b82 100%);
+      border: 1px solid #4267c2;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    button:hover { filter: brightness(1.08); }
+
+    .stack > * + * { margin-top: 14px; }
+
+    .status {
+      margin-top: 12px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      min-height: 1.4em;
+    }
+
+    .status.ok { color: var(--success); }
+    .status.error { color: var(--danger); }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 18px;
+    }
+
+    .links a {
+      text-decoration: none;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .meta-item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .meta-item .k {
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-bottom: 6px;
+    }
+
+    pre {
+      background: #0a0f22;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 840px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PosteriorDB Query App</h1>
+    <div class="sub">
+      Search PosteriorDB models, inspect the model info JSON, and jump directly to GitHub files.
+    </div>
+
+    <div class="grid">
+      <section class="card stack">
+        <div>
+          <label for="search">Filter models</label>
+          <input id="search" type="text" placeholder="Try: eight_schools, sir, radon..." />
+        </div>
+
+        <div>
+          <label for="modelSelect">Select a model</label>
+          <select id="modelSelect">
+            <option>Loading models...</option>
+          </select>
+        </div>
+
+        <button id="reloadBtn" type="button">Reload from GitHub</button>
+        <div id="status" class="status">Starting the tiny data goblin...</div>
+
+        <div class="small">
+          This page uses the GitHub contents API to list model info files and then fetches the selected
+          <code>.info.json</code> file directly from the repository.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 id="title" style="margin-top:0;">Model details</h2>
+        <div id="summary" class="sub" style="margin-bottom: 10px;">Pick a model to view its JSON info.</div>
+        <div id="links" class="links"></div>
+        <div id="meta" class="meta"></div>
+        <pre id="jsonView">{}</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const owner = 'stan-dev';
+    const repo = 'posteriordb';
+    const branch = 'master';
+    const infoDir = 'posterior_database/models/info';
+    const stanDir = 'posterior_database/models/stan';
+    const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}`;
+    const githubBase = `https://github.com/${owner}/${repo}/blob/${branch}`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${infoDir}?ref=${branch}`;
+
+    const searchInput = document.getElementById('search');
+    const modelSelect = document.getElementById('modelSelect');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const statusEl = document.getElementById('status');
+    const titleEl = document.getElementById('title');
+    const summaryEl = document.getElementById('summary');
+    const jsonViewEl = document.getElementById('jsonView');
+    const linksEl = document.getElementById('links');
+    const metaEl = document.getElementById('meta');
+
+    let modelFiles = [];
+    let filteredModels = [];
+
+    function setStatus(message, kind = '') {
+      statusEl.textContent = message;
+      statusEl.className = `status ${kind}`.trim();
+    }
+
+    function modelNameFromFile(filename) {
+      return filename.replace(/\.info\.json$/, '');
+    }
+
+    function githubBlobUrl(path) {
+      return `${githubBase}/${path}`;
+    }
+
+    function rawUrl(path) {
+      return `${rawBase}/${path}`;
+    }
+
+    function renderModelList() {
+      const q = searchInput.value.trim().toLowerCase();
+      filteredModels = modelFiles.filter(item => item.modelName.toLowerCase().includes(q));
+
+      modelSelect.innerHTML = '';
+      if (!filteredModels.length) {
+        const option = document.createElement('option');
+        option.textContent = 'No matching models';
+        option.value = '';
+        modelSelect.appendChild(option);
+        return;
+      }
+
+      for (const item of filteredModels) {
+        const option = document.createElement('option');
+        option.value = item.download_url;
+        option.textContent = item.modelName;
+        option.dataset.path = item.path;
+        modelSelect.appendChild(option);
+      }
+    }
+
+    function renderMeta(info) {
+      const implementations = info.model_implementations ? Object.keys(info.model_implementations).join(', ') : '—';
+      const meta = [
+        ['Name', info.name || '—'],
+        ['Added date', info.added_date || '—'],
+        ['Added by', info.added_by || '—'],
+        ['Licence', info.licence || '—'],
+        ['Implementations', implementations || '—'],
+        ['References', info.references || '—']
+      ];
+
+      metaEl.innerHTML = meta.map(([k, v]) => `
+        <div class="meta-item">
+          <div class="k">${escapeHtml(k)}</div>
+          <div>${escapeHtml(String(v))}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderLinks(info, selectedPath) {
+      const modelInfoLink = githubBlobUrl(selectedPath);
+      const modelInfoRaw = rawUrl(selectedPath);
+      const modelName = info.name || modelNameFromFile(selectedPath.split('/').pop());
+
+      let stanPath = null;
+      if (info.model_implementations?.stan?.model_code) {
+        stanPath = `posterior_database/${info.model_implementations.stan.model_code}`;
+      } else {
+        stanPath = `${stanDir}/${modelName}.stan`;
+      }
+
+      const links = [
+        { label: 'Model info on GitHub', href: modelInfoLink },
+        { label: 'Raw JSON', href: modelInfoRaw },
+        { label: 'Stan file on GitHub', href: githubBlobUrl(stanPath) },
+        { label: 'Raw Stan file', href: rawUrl(stanPath) }
+      ];
+
+      if (info.urls) {
+        links.push({ label: 'External source', href: info.urls });
+      }
+
+      linksEl.innerHTML = links.map(link => `
+        <a href="${escapeAttr(link.href)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>
+      `).join('');
+    }
+
+    async function loadModelInfo(downloadUrl, selectedPath) {
+      if (!downloadUrl) return;
+      setStatus('Fetching model info…');
+      try {
+        const res = await fetch(downloadUrl);
+        if (!res.ok) {
+          throw new Error(`GitHub returned ${res.status}`);
+        }
+        const info = await res.json();
+        titleEl.textContent = info.name || modelNameFromFile(selectedPath.split('/').pop());
+        summaryEl.textContent = info.description || 'No description found in the JSON. Tiny tragedy.';
+        renderMeta(info);
+        renderLinks(info, selectedPath);
+        jsonViewEl.textContent = JSON.stringify(info, null, 2);
+        setStatus('Model loaded.', 'ok');
+      } catch (error) {
+        jsonViewEl.textContent = '{}';
+        summaryEl.textContent = 'Could not load the selected model info.';
+        linksEl.innerHTML = '';
+        metaEl.innerHTML = '';
+        setStatus(`Failed to load model info: ${error.message}`, 'error');
+      }
+    }
+
+    async function loadModels() {
+      setStatus('Fetching model list from GitHub…');
+      modelSelect.innerHTML = '<option>Loading models...</option>';
+      try {
+        const res = await fetch(apiUrl, {
+          headers: { 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) {
+          throw new Error(`GitHub returned ${res.status}`);
+        }
+        const items = await res.json();
+        modelFiles = items
+          .filter(item => item.name.endsWith('.info.json'))
+          .map(item => ({
+            ...item,
+            modelName: modelNameFromFile(item.name)
+          }))
+          .sort((a, b) => a.modelName.localeCompare(b.modelName));
+
+        renderModelList();
+        if (filteredModels.length) {
+          modelSelect.selectedIndex = 0;
+          const selected = modelSelect.options[0];
+          await loadModelInfo(selected.value, selected.dataset.path);
+          setStatus(`Loaded ${modelFiles.length} models from GitHub.`, 'ok');
+        } else {
+          setStatus('No model files found.', 'error');
+        }
+      } catch (error) {
+        setStatus(`Failed to load models: ${error.message}`, 'error');
+        modelSelect.innerHTML = '<option>Could not load models</option>';
+      }
+    }
+
+    function escapeHtml(value) {
+      return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    searchInput.addEventListener('input', () => {
+      const previousPath = modelSelect.selectedOptions[0]?.dataset.path;
+      renderModelList();
+
+      const matchIndex = filteredModels.findIndex(item => item.path === previousPath);
+      modelSelect.selectedIndex = matchIndex >= 0 ? matchIndex : 0;
+
+      const selected = modelSelect.selectedOptions[0];
+      if (selected?.value) {
+        loadModelInfo(selected.value, selected.dataset.path);
+      }
+    });
+
+    modelSelect.addEventListener('change', () => {
+      const selected = modelSelect.selectedOptions[0];
+      if (selected?.value) {
+        loadModelInfo(selected.value, selected.dataset.path);
+      }
+    });
+
+    reloadBtn.addEventListener('click', loadModels);
+
+    loadModels();
+  </script>
+</body>
+</html>
