@@ -378,7 +378,7 @@
         </div>
 
         <div id="refDrawSection" style="display:none;">
-          <div class="panel-title">Reference draw info</div>
+          <div class="panel-title">Reference posterior info</div>
           <pre id="refDrawView"></pre>
         </div>
 
@@ -400,7 +400,7 @@
       { key: 'models', label: 'Models' },
       { key: 'posteriors', label: 'Posteriors' },
       { key: 'data', label: 'Data' },
-      { key: 'reference_draws', label: 'Reference Draws' },
+      { key: 'reference_draws', label: 'Reference Posteriors' },
       { key: 'references', label: 'References' }
     ];
 
@@ -473,7 +473,8 @@
     function renderTabs() {
       tabsEl.innerHTML = TAB_CONFIG.map(tab => {
         const active = tab.key === currentTab ? 'active' : '';
-        return `<button class="tab-btn ${active}" type="button" data-tab="${tab.key}">${escapeHtml(tab.label)}</button>`;
+        const count = Array.isArray(siteIndex?.[tab.key]) ? siteIndex[tab.key].length : 0;
+        return `<button class="tab-btn ${active}" type="button" data-tab="${tab.key}">${escapeHtml(tab.label)} (${count})</button>`;
       }).join('');
 
       tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
