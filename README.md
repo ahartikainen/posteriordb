@@ -11,7 +11,7 @@ coverage](https://codecov.io/gh/stan-dev/posteriordb-r/branch/main/graph/badge.s
 
 ## PosteriorDB model browser
 
-[Open the query app](https://<your-username>.github.io/<your-repo>/)
+[Open the query app](https://ahartikainen.github.io/posteriordb/)
 
 ## What is `posteriordb`?
 
