@@ -1,361 +1,792 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PosteriorDB Explorer</title>
-<style>
-:root{
---stan-orange:#e36f1e;
---stan-dark:#1e1e1e;
---stan-panel:#262626;
---stan-panel-2:#2f2f2f;
---stan-border:#3d3d3d;
---stan-text:#f3f3f3;
---stan-muted:#bdbdbd;
---stan-accent:#ff8c3a;
-}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PosteriorDB Explorer</title>
+  <style>
+    :root {
+      --bg: #17191c;
+      --panel: #22262b;
+      --panel-2: #2a2f35;
+      --panel-3: #101214;
+      --text: #f3f4f6;
+      --muted: #b8c0c7;
+      --border: #3b4148;
+      --stan: #e36f1e;
+      --stan-soft: #ff9b52;
+      --ok: #9ed89b;
+      --warn: #f2c572;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+      --radius: 18px;
+    }
 
-*{box-sizing:border-box}
+    * { box-sizing: border-box; }
 
-body{
-margin:0;
-font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-background:#181818;
-color:var(--stan-text);
-}
+    html, body {
+      margin: 0;
+      padding: 0;
+      background:
+        radial-gradient(circle at top right, rgba(227,111,30,0.13), transparent 22%),
+        linear-gradient(180deg, #17191c 0%, #1a1d21 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100%;
+    }
 
-.container{
-max-width:1200px;
-margin:auto;
-padding:30px;
-}
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px 20px 48px;
+    }
 
-h1{
-margin:0 0 6px 0;
-font-weight:700;
-color:var(--stan-orange);
-}
+    .hero {
+      margin-bottom: 20px;
+    }
 
-.sub{
-color:var(--stan-muted);
-margin-bottom:24px;
-}
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.01em;
+      color: var(--stan-soft);
+    }
 
-.grid{
-display:grid;
-grid-template-columns:320px 1fr;
-gap:20px;
-}
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 900px;
+    }
 
-.card{
-background:var(--stan-panel);
-border:1px solid var(--stan-border);
-border-radius:12px;
-padding:16px;
-}
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
 
-label{
-font-size:0.9rem;
-color:var(--stan-muted);
-display:block;
-margin-bottom:6px;
-}
+    .card {
+      background: rgba(34, 38, 43, 0.96);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
 
-input,select,button{
-width:100%;
-padding:10px;
-background:var(--stan-panel-2);
-color:var(--stan-text);
-border:1px solid var(--stan-border);
-border-radius:8px;
-font-size:0.95rem;
-}
+    .sidebar {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+    }
 
-button{
-margin-top:12px;
-background:var(--stan-orange);
-border:none;
-font-weight:600;
-cursor:pointer;
-}
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
 
-button:hover{
-background:var(--stan-accent);
-}
+    .tab-btn,
+    button,
+    select,
+    input {
+      font: inherit;
+    }
 
-.links{
-display:flex;
-flex-wrap:wrap;
-gap:8px;
-margin:12px 0;
-}
+    .tab-btn {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: 120ms ease;
+      text-align: center;
+    }
 
-.links a{
-background:var(--stan-panel-2);
-border:1px solid var(--stan-border);
-padding:6px 10px;
-border-radius:20px;
-text-decoration:none;
-color:var(--stan-text);
-font-size:0.85rem;
-}
+    .tab-btn:hover {
+      border-color: var(--stan);
+      transform: translateY(-1px);
+    }
 
-.meta{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-gap:10px;
-margin-bottom:14px;
-}
+    .tab-btn.active {
+      background: linear-gradient(180deg, rgba(227,111,30,0.30), rgba(227,111,30,0.18));
+      border-color: var(--stan-soft);
+      color: #fff8f2;
+    }
 
-.meta-item{
-background:var(--stan-panel-2);
-padding:8px;
-border-radius:8px;
-border:1px solid var(--stan-border);
-}
+    .field + .field { margin-top: 14px; }
 
-.meta-item .k{
-font-size:0.75rem;
-color:var(--stan-muted);
-margin-bottom:3px;
-}
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
 
-pre{
-background:#111;
-border:1px solid var(--stan-border);
-padding:14px;
-border-radius:10px;
-overflow:auto;
-font-size:0.85rem;
-}
+    input,
+    select,
+    button {
+      width: 100%;
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
 
-.codebox{
-margin-top:12px;
-}
+    input:focus,
+    select:focus,
+    button:focus,
+    .tab-btn:focus {
+      outline: 2px solid rgba(227,111,30,0.28);
+      outline-offset: 1px;
+    }
 
-.codebox h3{
-margin:12px 0 6px 0;
-font-size:0.95rem;
-color:var(--stan-orange);
-}
+    .primary-btn {
+      margin-top: 12px;
+      cursor: pointer;
+      border-color: #bf6320;
+      background: linear-gradient(180deg, #f18534 0%, #d76815 100%);
+      color: white;
+      font-weight: 700;
+    }
 
-.small{
-font-size:0.85rem;
-color:var(--stan-muted);
-margin-top:10px;
-}
+    .primary-btn:hover { filter: brightness(1.05); }
 
-@media(max-width:900px){
-.grid{grid-template-columns:1fr}
-}
-</style>
+    .hint {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .status {
+      min-height: 1.45em;
+      margin-top: 12px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+
+    .content h2 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      color: #fff8f2;
+    }
+
+    .content .summary {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .section-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 12px 0 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .pill:hover {
+      border-color: var(--stan);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .meta-item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .meta-item .k {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 5px;
+    }
+
+    .meta-item .v {
+      word-break: break-word;
+      line-height: 1.45;
+    }
+
+    .subtabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 14px 0 12px;
+    }
+
+    .subtab-btn {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    .subtab-btn.active {
+      border-color: var(--stan-soft);
+      background: rgba(227,111,30,0.20);
+    }
+
+    .code-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 8px 0 12px;
+    }
+
+    .ghost-btn {
+      width: auto;
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      padding: 9px 12px;
+    }
+
+    .ghost-btn:hover { border-color: var(--stan); }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .panel-title {
+      margin: 18px 0 8px;
+      font-size: 1rem;
+      color: var(--stan-soft);
+    }
+
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .list li + li { margin-top: 6px; }
+
+    .empty {
+      color: var(--muted);
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.015);
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <section class="hero">
+      <h1>PosteriorDB Explorer</h1>
+      <p>
+        Browse models, posteriors, data metadata, reference draws, and bibliography entries from a build-time index.
+        This page never fetches zipped datasets or draw archives in the browser. It shows metadata, previews, and links,
+        while keeping the page pleasantly compact and not behaving like a caffeinated octopus.
+      </p>
+    </section>
 
-<div class="container">
+    <div class="layout">
+      <aside class="card sidebar">
+        <div id="tabs" class="tabs"></div>
 
-<h1>PosteriorDB Explorer</h1>
-<div class="sub">Browse models, inspect metadata, and preview model implementations.</div>
+        <div class="field">
+          <label for="searchInput">Filter current tab</label>
+          <input id="searchInput" type="text" placeholder="Search names, keywords, descriptions..." />
+        </div>
 
-<div class="grid">
+        <div class="field">
+          <label for="itemSelect">Choose item</label>
+          <select id="itemSelect"></select>
+        </div>
 
-<section class="card">
+        <button id="reloadBtn" class="primary-btn" type="button">Reload static index</button>
+        <div id="status" class="status">Loading build-time index…</div>
 
-<label>Search model</label>
-<input id="search" placeholder="eight_schools, radon, sir...">
+        <div class="hint">
+          The app expects static files generated during the docs build, such as <code>data/site-index.json</code> and
+          per-item JSON files under <code>data/models</code>, <code>data/posteriors</code>, <code>data/data-info</code>,
+          <code>data/reference-draws</code>, and <code>data/references</code>.
+        </div>
+      </aside>
 
-<label style="margin-top:10px">Select model</label>
-<select id="modelSelect"></select>
+      <main class="card content">
+        <h2 id="title">Details</h2>
+        <p id="summary" class="summary">Pick a tab and an item.</p>
+        <div id="links" class="section-row"></div>
+        <div id="meta" class="meta-grid"></div>
 
-<button id="reloadBtn">Reload models</button>
+        <div id="implSection" style="display:none;">
+          <div class="panel-title">Implementation preview</div>
+          <div id="implTabs" class="subtabs"></div>
+          <div class="code-actions">
+            <button id="toggleCodeBtn" class="ghost-btn" type="button">Hide code</button>
+            <a id="downloadCodeBtn" class="pill" href="#" download>Download code</a>
+          </div>
+          <pre id="codeView"></pre>
+        </div>
 
-<div class="small">Data files are detected but never downloaded.</div>
+        <div id="posteriorSection" style="display:none;">
+          <div class="panel-title">Posterior structure</div>
+          <pre id="posteriorView"></pre>
+        </div>
 
-</section>
+        <div id="dataSection" style="display:none;">
+          <div class="panel-title">Data notes</div>
+          <ul id="dataNotes" class="list"></ul>
+        </div>
 
-<section class="card">
+        <div id="refDrawSection" style="display:none;">
+          <div class="panel-title">Reference draw info</div>
+          <pre id="refDrawView"></pre>
+        </div>
 
-<h2 id="title">Model</h2>
-<div id="summary" class="sub"></div>
+        <div id="referenceSection" style="display:none;">
+          <div class="panel-title">Reference entry</div>
+          <pre id="referenceView"></pre>
+        </div>
 
-<div id="links" class="links"></div>
+        <div class="panel-title">JSON view</div>
+        <pre id="jsonView">{}</pre>
+      </main>
+    </div>
+  </div>
 
-<div id="meta" class="meta"></div>
+  <script>
+    const INDEX_URL = './data/site-index.json';
 
-<h3 style="color:var(--stan-orange)">Model JSON</h3>
-<pre id="jsonView"></pre>
+    const TAB_CONFIG = [
+      { key: 'models', label: 'Models' },
+      { key: 'posteriors', label: 'Posteriors' },
+      { key: 'data', label: 'Data' },
+      { key: 'reference_draws', label: 'Reference Draws' },
+      { key: 'references', label: 'References' }
+    ];
 
-<div class="codebox">
-<h3>Model implementation</h3>
-<pre id="codeView"></pre>
-</div>
+    const tabsEl = document.getElementById('tabs');
+    const searchInput = document.getElementById('searchInput');
+    const itemSelect = document.getElementById('itemSelect');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const statusEl = document.getElementById('status');
 
-</section>
+    const titleEl = document.getElementById('title');
+    const summaryEl = document.getElementById('summary');
+    const linksEl = document.getElementById('links');
+    const metaEl = document.getElementById('meta');
+    const jsonViewEl = document.getElementById('jsonView');
 
-</div>
+    const implSectionEl = document.getElementById('implSection');
+    const implTabsEl = document.getElementById('implTabs');
+    const codeViewEl = document.getElementById('codeView');
+    const toggleCodeBtn = document.getElementById('toggleCodeBtn');
+    const downloadCodeBtn = document.getElementById('downloadCodeBtn');
 
-</div>
+    const posteriorSectionEl = document.getElementById('posteriorSection');
+    const posteriorViewEl = document.getElementById('posteriorView');
 
-<script>
+    const dataSectionEl = document.getElementById('dataSection');
+    const dataNotesEl = document.getElementById('dataNotes');
 
-const owner="stan-dev"
-const repo="posteriordb"
-const branch="master"
+    const refDrawSectionEl = document.getElementById('refDrawSection');
+    const refDrawViewEl = document.getElementById('refDrawView');
 
-const infoDir="posterior_database/models/info"
-const rawBase=`https://raw.githubusercontent.com/${owner}/${repo}/${branch}`
-const api=`https://api.github.com/repos/${owner}/${repo}/contents/${infoDir}?ref=${branch}`
+    const referenceSectionEl = document.getElementById('referenceSection');
+    const referenceViewEl = document.getElementById('referenceView');
 
-const search=document.getElementById("search")
-const select=document.getElementById("modelSelect")
-const reload=document.getElementById("reloadBtn")
+    let siteIndex = null;
+    let currentTab = 'models';
+    let filteredItems = [];
+    let currentItem = null;
+    let currentImplementationIndex = 0;
+    let codeVisible = true;
 
-const jsonView=document.getElementById("jsonView")
-const codeView=document.getElementById("codeView")
-const title=document.getElementById("title")
-const summary=document.getElementById("summary")
-const meta=document.getElementById("meta")
-const links=document.getElementById("links")
+    function setStatus(message, kind = '') {
+      statusEl.textContent = message;
+      statusEl.className = `status ${kind}`.trim();
+    }
 
-let models=[]
-let filtered=[]
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
 
-function nameFromFile(file){
-return file.replace(".info.json","")
-}
+    function clearSectionViews() {
+      implSectionEl.style.display = 'none';
+      posteriorSectionEl.style.display = 'none';
+      dataSectionEl.style.display = 'none';
+      refDrawSectionEl.style.display = 'none';
+      referenceSectionEl.style.display = 'none';
+      implTabsEl.innerHTML = '';
+      codeViewEl.textContent = '';
+      posteriorViewEl.textContent = '';
+      dataNotesEl.innerHTML = '';
+      refDrawViewEl.textContent = '';
+      referenceViewEl.textContent = '';
+      downloadCodeBtn.style.display = 'none';
+    }
 
-function renderList(){
-const q=search.value.toLowerCase()
-filtered=models.filter(m=>m.name.includes(q))
+    function renderTabs() {
+      tabsEl.innerHTML = TAB_CONFIG.map(tab => {
+        const active = tab.key === currentTab ? 'active' : '';
+        return `<button class="tab-btn ${active}" type="button" data-tab="${tab.key}">${escapeHtml(tab.label)}</button>`;
+      }).join('');
 
-select.innerHTML=""
+      tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentTab = btn.dataset.tab;
+          searchInput.value = '';
+          currentImplementationIndex = 0;
+          renderTabs();
+          renderList();
+        });
+      });
+    }
 
-filtered.forEach(m=>{
-const o=document.createElement("option")
-o.value=m.url
-o.textContent=m.name
-select.appendChild(o)
-})
+    function getItemsForCurrentTab() {
+      if (!siteIndex) return [];
+      const items = siteIndex[currentTab];
+      return Array.isArray(items) ? items : [];
+    }
 
-if(filtered.length) loadModel(filtered[0])
-}
+    function itemSearchText(item) {
+      return [
+        item.id,
+        item.name,
+        item.title,
+        item.description,
+        item.model_name,
+        item.data_name,
+        item.reference_posterior_name,
+        Array.isArray(item.keywords) ? item.keywords.join(' ') : '',
+        item.citation_key
+      ].filter(Boolean).join(' ').toLowerCase();
+    }
 
-function renderMeta(info){
-const items=[
-["Added",info.added_date],
-["Licence",info.licence],
-["Added by",info.added_by]
-]
+    function renderList() {
+      const allItems = getItemsForCurrentTab();
+      const q = searchInput.value.trim().toLowerCase();
+      filteredItems = allItems.filter(item => itemSearchText(item).includes(q));
 
-meta.innerHTML=items.map(([k,v])=>`
-<div class="meta-item">
-<div class="k">${k}</div>
-<div>${v||"—"}</div>
-</div>
-`).join("")
-}
+      itemSelect.innerHTML = '';
+      if (!filteredItems.length) {
+        itemSelect.innerHTML = '<option value="">No matching items</option>';
+        renderEmptyState();
+        setStatus('No matching items in this tab.', 'warn');
+        return;
+      }
 
-function renderLinks(info){
-links.innerHTML=""
+      filteredItems.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = item.name || item.id || item.title || `Item ${index + 1}`;
+        itemSelect.appendChild(option);
+      });
 
-if(info.model_implementations){
-Object.entries(info.model_implementations).forEach(([lang,obj])=>{
-if(obj.model_code){
-const path="posterior_database/"+obj.model_code
-const a=document.createElement("a")
-a.href=`${rawBase}/${path}`
-a.target="_blank"
-a.textContent=`${lang} code`
-links.appendChild(a)
-}
-})
-}
+      itemSelect.selectedIndex = 0;
+      loadSelectedItem();
+      setStatus(`Loaded ${filteredItems.length} items from ${currentTab.replace('_', ' ')}.`, 'ok');
+    }
 
-if(info.data){
-const a=document.createElement("a")
-a.textContent="data available"
-a.title="dataset exists but not downloaded"
-links.appendChild(a)
-}
-}
+    function renderEmptyState() {
+      currentItem = null;
+      titleEl.textContent = 'Details';
+      summaryEl.textContent = 'Nothing to show for this filter.';
+      linksEl.innerHTML = '';
+      metaEl.innerHTML = '<div class="empty">Try a broader search or another tab.</div>';
+      jsonViewEl.textContent = '{}';
+      clearSectionViews();
+    }
 
-async function loadCode(path){
-if(!path){
-codeView.textContent="No implementation found"
-return
-}
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${url} (${res.status})`);
+      }
+      return await res.json();
+    }
 
-const url=`${rawBase}/${path}`
+    async function loadSelectedItem() {
+      const idx = Number(itemSelect.value);
+      const selected = filteredItems[idx];
+      if (!selected) {
+        renderEmptyState();
+        return;
+      }
 
-try{
-const r=await fetch(url)
-const text=await r.text()
+      try {
+        setStatus(`Loading ${selected.name || selected.id}…`);
+        const item = selected.item_json ? await fetchJson(selected.item_json) : selected;
+        currentItem = item;
+        currentImplementationIndex = 0;
+        renderItem(item);
+        setStatus(`Showing ${selected.name || selected.id}.`, 'ok');
+      } catch (error) {
+        titleEl.textContent = 'Load error';
+        summaryEl.textContent = 'Could not load the selected item.';
+        linksEl.innerHTML = '';
+        metaEl.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        jsonViewEl.textContent = '{}';
+        clearSectionViews();
+        setStatus(error.message, 'warn');
+      }
+    }
 
-codeView.textContent=text.slice(0,4000)
-}catch{
-codeView.textContent="Could not load code"
-}
-}
+    function renderLinks(links) {
+      if (!links || typeof links !== 'object') {
+        linksEl.innerHTML = '';
+        return;
+      }
+      const entries = Object.entries(links).filter(([, value]) => typeof value === 'string' && value.length > 0);
+      linksEl.innerHTML = entries.map(([key, value]) => {
+        const label = key.replaceAll('_', ' ');
+        return `<a class="pill" href="${escapeHtml(value)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
+      }).join('');
+    }
 
-async function loadModel(m){
+    function renderMetaGrid(items) {
+      const filtered = items.filter(([, value]) => {
+        if (value === null || value === undefined || value === '') return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        return true;
+      });
 
-const r=await fetch(m.url)
-const info=await r.json()
+      if (!filtered.length) {
+        metaEl.innerHTML = '<div class="empty">No lightweight metadata available.</div>';
+        return;
+      }
 
-jsonView.textContent=JSON.stringify(info,null,2)
+      metaEl.innerHTML = filtered.map(([k, v]) => `
+        <div class="meta-item">
+          <div class="k">${escapeHtml(k.replaceAll('_', ' '))}</div>
+          <div class="v">${escapeHtml(Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v))}</div>
+        </div>
+      `).join('');
+    }
 
-summary.textContent=info.description||""
+    function chooseSummary(item) {
+      return item.description || item.title || item.comments || 'No summary available.';
+    }
 
-title.textContent=info.name||m.name
+    function renderModelItem(item) {
+      const metaItems = [
+        ['name', item.name],
+        ['title', item.title],
+        ['added_by', item.added_by],
+        ['added_date', item.added_date],
+        ['licence', item.licence],
+        ['keywords', item.keywords],
+        ['has_data', item.data_summary?.has_data ? 'yes' : 'no'],
+        ['preferred_implementation', item.implementation_priority]
+      ];
+      renderMetaGrid(metaItems);
 
-renderMeta(info)
-renderLinks(info)
+      const implementations = Array.isArray(item.implementations) ? item.implementations : [];
+      if (!implementations.length) {
+        implSectionEl.style.display = 'block';
+        implTabsEl.innerHTML = '';
+        codeViewEl.textContent = 'No implementation preview found.';
+        downloadCodeBtn.style.display = 'none';
+        return;
+      }
 
-let codePath=null
+      implSectionEl.style.display = 'block';
+      implTabsEl.innerHTML = implementations.map((impl, index) => {
+        const active = index === currentImplementationIndex ? 'active' : '';
+        return `<button class="subtab-btn ${active}" type="button" data-impl-index="${index}">${escapeHtml(impl.name || `impl ${index + 1}`)}</button>`;
+      }).join('');
 
-if(info.model_implementations){
+      implTabsEl.querySelectorAll('.subtab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentImplementationIndex = Number(btn.dataset.implIndex);
+          renderModelItem(item);
+        });
+      });
 
-if(info.model_implementations.stan)
-codePath="posterior_database/"+info.model_implementations.stan.model_code
+      const selectedImpl = implementations[currentImplementationIndex] || implementations[0];
+      const previewMap = item.code_previews || {};
+      const previewText = previewMap[selectedImpl.name] || item.code_preview || 'No code preview available.';
+      codeViewEl.textContent = previewText;
 
-else if(info.model_implementations.pymc)
-codePath="posterior_database/"+info.model_implementations.pymc.model_code
+      const downloadUrl = selectedImpl.raw || selectedImpl.github || '#';
+      downloadCodeBtn.href = downloadUrl;
+      downloadCodeBtn.download = '';
+      downloadCodeBtn.style.display = downloadUrl === '#' ? 'none' : 'inline-flex';
+    }
 
-}
+    function renderPosteriorItem(item) {
+      posteriorSectionEl.style.display = 'block';
+      renderMetaGrid([
+        ['name', item.name],
+        ['model_name', item.model_name],
+        ['data_name', item.data_name],
+        ['reference_posterior_name', item.reference_posterior_name],
+        ['added_by', item.added_by],
+        ['added_date', item.added_date],
+        ['keywords', item.keywords]
+      ]);
+      posteriorViewEl.textContent = JSON.stringify({
+        dimension: item.dimension || null,
+        keywords: item.keywords || [],
+        references: item.references || [],
+        model_name: item.model_name || null,
+        data_name: item.data_name || null,
+        reference_posterior_name: item.reference_posterior_name || null
+      }, null, 2);
+    }
 
-loadCode(codePath)
+    function renderDataItem(item) {
+      dataSectionEl.style.display = 'block';
+      renderMetaGrid([
+        ['name', item.name],
+        ['title', item.title],
+        ['added_by', item.added_by],
+        ['added_date', item.added_date],
+        ['data_file', item.data_file],
+        ['keywords', item.keywords],
+        ['has_raw_script', item.raw_script ? 'yes' : 'no']
+      ]);
 
-}
+      const notes = [];
+      if (item.description) notes.push(item.description);
+      if (Array.isArray(item.references) && item.references.length) notes.push(`References: ${item.references.join(', ')}`);
+      if (item.urls) notes.push(`URL: ${item.urls}`);
+      if (item.raw_script) notes.push(`Raw script available: ${item.raw_script}`);
+      if (!notes.length) notes.push('No extra data notes found. Dataset archives are intentionally not loaded in the browser.');
 
-async function loadModels(){
+      dataNotesEl.innerHTML = notes.map(note => `<li>${escapeHtml(note)}</li>`).join('');
+    }
 
-const r=await fetch(api)
-const items=await r.json()
+    function renderReferenceDrawItem(item) {
+      refDrawSectionEl.style.display = 'block';
+      renderMetaGrid([
+        ['name', item.name],
+        ['added_by', item.added_by],
+        ['added_date', item.added_date],
+        ['method', item.inference?.method],
+        ['versions', item.versions ? JSON.stringify(item.versions) : null]
+      ]);
+      refDrawViewEl.textContent = JSON.stringify({
+        inference: item.inference || null,
+        diagnostics: item.diagnostics || null,
+        checks_made: item.checks_made || null,
+        comments: item.comments || null
+      }, null, 2);
+    }
 
-models=items
-.filter(x=>x.name.endsWith(".info.json"))
-.map(x=>({
-name:nameFromFile(x.name),
-url:x.download_url
-}))
-.sort((a,b)=>a.name.localeCompare(b.name))
+    function renderReferenceItem(item) {
+      referenceSectionEl.style.display = 'block';
+      renderMetaGrid([
+        ['citation_key', item.citation_key],
+        ['title', item.title],
+        ['author', item.author],
+        ['year', item.year],
+        ['entry_type', item.entry_type]
+      ]);
+      referenceViewEl.textContent = item.bibtex || JSON.stringify(item, null, 2);
+    }
 
-renderList()
-}
+    function renderItem(item) {
+      clearSectionViews();
+      titleEl.textContent = item.name || item.title || item.citation_key || item.id || 'Details';
+      summaryEl.textContent = chooseSummary(item);
+      renderLinks(item.links);
+      jsonViewEl.textContent = JSON.stringify(item.full_info || item, null, 2);
 
-search.addEventListener("input",renderList)
+      switch (currentTab) {
+        case 'models':
+          renderModelItem(item);
+          break;
+        case 'posteriors':
+          renderPosteriorItem(item);
+          break;
+        case 'data':
+          renderDataItem(item);
+          break;
+        case 'reference_draws':
+          renderReferenceDrawItem(item);
+          break;
+        case 'references':
+          renderReferenceItem(item);
+          break;
+        default:
+          renderMetaGrid(Object.entries(item).slice(0, 8));
+      }
+    }
 
-select.addEventListener("change",()=>{
-const m=filtered[select.selectedIndex]
-loadModel(m)
-})
+    toggleCodeBtn.addEventListener('click', () => {
+      codeVisible = !codeVisible;
+      codeViewEl.style.display = codeVisible ? 'block' : 'none';
+      toggleCodeBtn.textContent = codeVisible ? 'Hide code' : 'Show code';
+    });
 
-reload.onclick=loadModels
+    searchInput.addEventListener('input', renderList);
+    itemSelect.addEventListener('change', loadSelectedItem);
+    reloadBtn.addEventListener('click', loadSiteIndex);
 
-loadModels()
+    async function loadSiteIndex() {
+      try {
+        setStatus('Loading static site index…');
+        siteIndex = await fetchJson(INDEX_URL);
+        renderTabs();
+        renderList();
+      } catch (error) {
+        renderTabs();
+        titleEl.textContent = 'Index not found';
+        summaryEl.textContent = 'The build-time JSON index could not be loaded.';
+        linksEl.innerHTML = '';
+        metaEl.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        jsonViewEl.textContent = '{}';
+        clearSectionViews();
+        setStatus(error.message, 'warn');
+      }
+    }
 
-</script>
-
+    loadSiteIndex();
+  </script>
 </body>
 </html>
