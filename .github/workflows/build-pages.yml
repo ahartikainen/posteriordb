@@ -10,18 +10,16 @@ on:
       - "scripts/build_index.py"
       - "docs/index.html"
       - ".github/workflows/build-pages.yml"
-
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
 concurrency:
   group: "github-pages"
   cancel-in-progress: true
-
 
 jobs:
   build:
@@ -31,50 +29,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-
-
       - name: Build static index files
+        run: python scripts/build_index.py
+
+      - name: Verify generated files
         run: |
-          python scripts/build_index.py
-
-
-      - name: Ensure docs directory exists
-        run: |
-          ls -R docs
-
-
-      - name: Add .nojekyll
-        run: |
-          touch docs/.nojekyll
-
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
+          test -f docs/data/site-index.json
+          echo "site-index exists"
+          find docs/data -maxdepth 2 -type f | sort
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
-
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
-    runs-on: ubuntu-latest
-    needs: build
 
     steps:
       - name: Deploy to GitHub Pages
