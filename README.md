@@ -9,6 +9,10 @@ coverage](https://codecov.io/gh/stan-dev/posteriordb-r/branch/main/graph/badge.s
 
 # `posteriordb`: a database of Bayesian posterior inference
 
+## PosteriorDB model browser
+
+[Open the query app](https://<your-username>.github.io/<your-repo>/)
+
 ## What is `posteriordb`?
 
 `posteriordb` is a set of posteriors, i.e. Bayesian statistical models
