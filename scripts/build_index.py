@@ -15,7 +15,7 @@ MODELS_INFO_DIR = ROOT / "posterior_database" / "models" / "info"
 POSTERIORS_DIR = ROOT / "posterior_database" / "posteriors"
 DATA_INFO_DIR = ROOT / "posterior_database" / "data" / "info"
 REFERENCE_DRAWS_INFO_DIR = ROOT / "posterior_database" / "reference_posteriors" / "draws" / "info"
-REFERENCES_BIB = ROOT / "posterior_database" / "references" / "references.bib"
+REFERENCES_BIB = ROOT / "posterior_database" / "bibliography" / "references.bib"
 
 RAW_BASE = "https://raw.githubusercontent.com/stan-dev/posteriordb/master"
 BLOB_BASE = "https://github.com/stan-dev/posteriordb/blob/master"
